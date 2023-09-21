@@ -12,6 +12,7 @@ use craft\commerce\Plugin as Commerce;
 use craft\db\Query;
 use craft\feedme\base\Element;
 use craft\feedme\events\FeedProcessEvent;
+use craft\feedme\events\RegisterFeedMeNestedFieldsEvent;
 use craft\feedme\helpers\BaseHelper;
 use craft\feedme\helpers\DataHelper;
 use craft\feedme\Plugin;
@@ -33,6 +34,11 @@ use yii\base\Event;
  */
 class CommerceProduct extends Element
 {
+    // Contants
+    // 
+
+    public const EVENT_REGISTER_FEED_ME_NESTED_FIELDS = 'registerFeedMeNestedFields';
+
     // Properties
     // =========================================================================
 
@@ -171,6 +177,24 @@ class CommerceProduct extends Element
         }
 
         return true;
+    }
+
+    /**
+     * Allow plugins to register other nested field types that should behave like the native table and matrix fields
+     * @return array
+     */
+    public function getNestedFieldTypes(): array
+    {
+        $event = new RegisterFeedMeNestedFieldsEvent([
+            'nestedFields' => [
+                Matrix::class, 
+                Table::class
+            ],
+        ]);
+
+        $this->trigger(self::EVENT_REGISTER_FEED_ME_NESTED_FIELDS, $event);
+
+        return $event->nestedFields;
     }
 
 
@@ -319,7 +343,7 @@ class CommerceProduct extends Element
                     }
                 }
 
-                $isNestedField = (in_array(Hash::get($fieldInfo, 'field'), [Matrix::class, Table::class]));
+                $isNestedField = (in_array(Hash::get($fieldInfo, 'field'), $this->getNestedFieldTypes()));
 
                 if ($isNestedField === true) {
                     $complexFields[$variantIndex][$fieldHandle]['info'] = $fieldInfo;
